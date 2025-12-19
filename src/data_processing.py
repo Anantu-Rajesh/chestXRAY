@@ -83,19 +83,19 @@ data_augmentation=tf.keras.Sequential([
 train_ds_aug=train_ds.map(lambda x,y:(data_augmentation(x,training=True),y))   #len of train_ds_aug = len of train_ds
 
 #Data scaling/ normalisation: normalising/rescaling rgb values to [0,1] from [0,255]
-normalisation_layer=tf.keras.layers.Rescaling(1./255) # the 1. helps with float division (this line returns value in range 0-1)
+#normalisation_layer=tf.keras.layers.Rescaling(1./255) # the 1. helps with float division (this line returns value in range 0-1)
 
-train_ds_scaled=train_ds_aug.map(lambda x,y:(normalisation_layer(x),y)) #here x is the image and y is the label, y remains unchanged while x is scaled
-val_ds_scaled=val_ds.map(lambda x,y:(normalisation_layer(x),y))
-test_ds_scaled=test_ds.map(lambda x,y:(normalisation_layer(x),y))
+#train_ds_scaled=train_ds_aug.map(lambda x,y:(normalisation_layer(x),y)) #here x is the image and y is the label, y remains unchanged while x is scaled
+#val_ds_scaled=val_ds.map(lambda x,y:(normalisation_layer(x),y))
+#test_ds_scaled=test_ds.map(lambda x,y:(normalisation_layer(x),y))
 
 #check a batch of images to see if normalisation is done properly
-ds_list=[train_ds_scaled,val_ds_scaled,test_ds_scaled]
-for i in ds_list:
-    image_batch, labels_batch = next(iter(i))
-    first_image = image_batch[0]
-    # Notice the pixel values are now in [0,1].
-    print(np.min(first_image), np.max(first_image))
+#ds_list=[train_ds_scaled,val_ds_scaled,test_ds_scaled]
+#for i in ds_list:
+#    #image_batch, labels_batch = next(iter(i))
+#    #first_image = image_batch[0]
+#    # Notice the pixel values are now in [0,1].
+#    #print(np.min(first_image), np.max(first_image))
     
 #finding length of classes in train set so that we can see class imbalance and assign class weights
 train_class_counts = {}
