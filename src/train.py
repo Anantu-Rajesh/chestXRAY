@@ -28,13 +28,13 @@ history_1=model.fit(
     validation_data=dp.val_ds,
     epochs=config.epoch,
     verbose=2,
-    class_weight=dp.class_weight,
+    class_weight=dp.class_weight_very_strong,
     callbacks=[
         tf.keras.callbacks.EarlyStopping(patience=3,restore_best_weights=True),
         tf.keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=2)
     ]
 )
-model.save('model/final_model_v2.h5') #saves initial model(with frozen base and no fine-tuning )
+model.save('model/final_model_v9_p1.h5')
 print("\n" + "="*60)
 print(f"PHASE 1 COMPLETE")
 print(f"Final Training Accuracy: {history_1.history['accuracy'][-1]:.4f}")
@@ -74,18 +74,18 @@ history_2=model.fit(
     validation_data=dp.val_ds,
     epochs=config.epoch,
     verbose=2,
-    class_weight=dp.class_weight,
+    class_weight=dp.class_weight_very_strong,
     callbacks=[
         tf.keras.callbacks.EarlyStopping(patience=5,restore_best_weights=True),
     ]
 )
-model.save('model/final_model_v2.h5') #saves finsl model(with fine-tuning)
+model.save('model/final_model_v9.h5') #saves final model(with fine-tuning)
 
 #visualising results
 print("\n" + "="*60)
-print("TRAINING COMPLETE - FINAL RESULTS")
+print("TRAINING COMPLETE (strong weights and val_split 0.25) - FINAL RESULTS")
 print("="*60)
-print(f"Final Training Accuracy: {history_1.history['accuracy'][-1]:.4f}")
-print(f"Final Validation Accuracy: {history_1.history['val_accuracy'][-1]:.4f}")
+print(f"Final Training Accuracy: {history_2.history['accuracy'][-1]:.4f}")
+print(f"Final Validation Accuracy: {history_2.history['val_accuracy'][-1]:.4f}")
 print(f"Final Validation AUC: {history_2.history['val_AUC'][-1]:.4f}")
 print("="*60 + "\n")

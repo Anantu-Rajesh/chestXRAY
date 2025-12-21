@@ -21,31 +21,28 @@ print(f"Total images found: {image_count}")
 #Load the training data and use 20% of it for validation set 
 #The image dimension and batch size are set(mentioned in config.py)
 #Using the image_dataset_from_directory method from keras.preprocessing greyscale is already converted to RGB
-train_ds=tf.keras.preprocessing.image_dataset_from_directory(
-    config.train_dir,
-    validation_split=config.validation_split,
-    subset='training',
+full_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    config.data_dir,
     seed=123,
     image_size=config.img_size,
     batch_size=config.batch_size,
+    shuffle=True,
     labels='inferred'
 )
-val_ds=tf.keras.preprocessing.image_dataset_from_directory(
-    config.train_dir,
-    validation_split=config.validation_split,
-    subset='validation',
-    seed=123,
-    image_size=config.img_size,
-    batch_size=config.batch_size,
-    labels='inferred'
-)
-#loading test data
-test_ds=tf.keras.preprocessing.image_dataset_from_directory(
-    config.test_dir,
-    image_size=config.img_size,
-    batch_size=config.batch_size,
-    labels='inferred'
-)
+
+classes = full_ds.class_names
+
+# Calculate batch counts for 60/20/20 split
+total_batches = tf.data.experimental.cardinality(full_ds).numpy()
+train_batches = int(0.6 * total_batches)
+val_batches = int(0.2 * total_batches)
+# test_batches = remaining
+
+# Split the dataset
+train_ds = full_ds.take(train_batches)
+remaining = full_ds.skip(train_batches)
+val_ds = remaining.take(val_batches)
+test_ds = remaining.skip(val_batches)
 
 #label count (this is useful for class weights calculation later)
 label_counts = Counter()
@@ -54,7 +51,6 @@ for _, labels in train_ds:
 print(label_counts)
 
 #seeing the class names
-classes=train_ds.class_names
 print(f"classes are: {classes}")
 
 #visualizing some images from the dataset
@@ -118,6 +114,11 @@ class_weight = {
     cls: total_samples / (num_classes * count)
     for cls, count in label_counts.items()
 }
+
+class_weight_balanced = {0: 1.0, 1: 1.0}
+class_weight_gentle = {0: 1.2, 1: 0.9}
+class_weight_strong = {0: 1.5, 1: 0.8}
+class_weight_very_strong = {0: 2.5, 1: 0.7}
 
 print(class_weight)
 
