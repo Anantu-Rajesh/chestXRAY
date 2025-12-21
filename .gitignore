@@ -37,9 +37,13 @@ ENV/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Model files (large)
+# Model files (large) - keep only final trained models
 model/*.h5
+model/*_v[0-9]*.h5
+model/*_v[0-9][0-9]*.h5
 model/*.keras
+!model/densenet_v1.keras
+!model/densenet_v1_p1.keras
 model/*.pt
 model/*.pth
 model/*.ckpt
@@ -71,3 +75,21 @@ htmlcov/
 # Environment variables
 .env
 .env.local
+
+# Experimental files and notes
+focalloss.txt
+*.txt.bak
+experiments/
+scratch/
+cleanup_old_models.ps1
+
+# Generated outputs
+confusion_matrix.png
+*.csv
+results/
+outputs/
+
+# Temporary files
+*.tmp
+*.temp
+~*

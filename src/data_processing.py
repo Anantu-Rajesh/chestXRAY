@@ -12,45 +12,107 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow Python warnings
 from collections import Counter
+import random
 
 
-#Load the Dataset from the directory specified in config.py 
-image_count = len(list(config.data_dir.glob('*/*/*.jpeg')))
-print(f"Total images found: {image_count}")
+#Load the Dataset with patient-level splitting to prevent data leakage
+import glob
+from collections import defaultdict
 
-#Load the training data and use 20% of it for validation set 
-#The image dimension and batch size are set(mentioned in config.py)
-#Using the image_dataset_from_directory method from keras.preprocessing greyscale is already converted to RGB
-full_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    config.data_dir,
-    seed=123,
-    image_size=config.img_size,
-    batch_size=config.batch_size,
-    shuffle=True,
-    labels='inferred'
-)
+# Get all image file paths
+normal_files = list(config.data_dir.glob('NORMAL/*.jpeg'))
+pneumonia_files = list(config.data_dir.glob('PNEUMONIA/**/*.jpeg'))
 
-classes = full_ds.class_names
+all_files = []
+all_labels = []
+classes = ['NORMAL', 'PNEUMONIA']
 
-# Calculate batch counts for 60/20/20 split
-total_batches = tf.data.experimental.cardinality(full_ds).numpy()
-train_batches = int(0.6 * total_batches)
-val_batches = int(0.2 * total_batches)
-# test_batches = remaining
+for f in normal_files:
+    all_files.append(str(f))
+    all_labels.append(0)  # NORMAL = 0
 
-# Split the dataset
-train_ds = full_ds.take(train_batches)
-remaining = full_ds.skip(train_batches)
-val_ds = remaining.take(val_batches)
-test_ds = remaining.skip(val_batches)
+for f in pneumonia_files:
+    all_files.append(str(f))
+    all_labels.append(1)  # PNEUMONIA = 1
 
-#label count (this is useful for class weights calculation later)
-label_counts = Counter()
-for _, labels in train_ds:
-    label_counts.update(labels.numpy())
+print(f"Found {len(all_files)} files belonging to 2 classes.")
+
+# Group images by patient ID
+patient_data = defaultdict(list)
+
+for filepath, label in zip(all_files, all_labels):
+    filename = os.path.basename(filepath)
+    
+    # Extract patient ID from filename
+    if filename.startswith('person'):
+        patient_id = filename.split('_')[0]  # personXXX_bacteria/virus_YYY -> personXXX
+    elif filename.startswith('img-'):
+        patient_id = 'normal_' + filename.split('-')[1]  # img-XXX-YYY -> normal_XXX
+    else:
+        patient_id = filename  # Fallback
+    
+    patient_data[patient_id].append((filepath, label))
+
+print(f"Total unique patients: {len(patient_data)}")
+
+# Split PATIENTS (not images) into 60/20/20
+random.seed(123)
+patient_ids = list(patient_data.keys())
+random.shuffle(patient_ids)
+
+n_patients = len(patient_ids)
+train_patients = patient_ids[:int(0.6 * n_patients)]
+val_patients = patient_ids[int(0.6 * n_patients):int(0.8 * n_patients)]
+test_patients = patient_ids[int(0.8 * n_patients):]
+
+print(f"Train patients: {len(train_patients)}, Val patients: {len(val_patients)}, Test patients: {len(test_patients)}")
+
+# Create file lists for each split
+train_files, train_labels = [], []
+val_files, val_labels = [], []
+test_files, test_labels = [], []
+
+for pid in train_patients:
+    for filepath, label in patient_data[pid]:
+        train_files.append(filepath)
+        train_labels.append(label)
+
+for pid in val_patients:
+    for filepath, label in patient_data[pid]:
+        val_files.append(filepath)
+        val_labels.append(label)
+
+for pid in test_patients:
+    for filepath, label in patient_data[pid]:
+        test_files.append(filepath)
+        test_labels.append(label)
+
+print(f"Train images: {len(train_files)}, Val images: {len(val_files)}, Test images: {len(test_files)}")
+
+# Load and preprocess function - ENSURES 3-CHANNEL RGB
+def load_and_preprocess(filepath, label):
+    image = tf.io.read_file(filepath)
+    image = tf.image.decode_jpeg(image, channels=3)  # Force 3 channels (grayscale -> RGB)
+    image = tf.image.resize(image, config.img_size)
+    image = tf.cast(image, tf.float32)  # Convert to float for preprocessing
+    return image, label
+
+# Create TensorFlow datasets
+train_ds = tf.data.Dataset.from_tensor_slices((train_files, train_labels))
+train_ds = train_ds.map(load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+train_ds = train_ds.shuffle(1000).batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+
+val_ds = tf.data.Dataset.from_tensor_slices((val_files, val_labels))
+val_ds = val_ds.map(load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+val_ds = val_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+
+test_ds = tf.data.Dataset.from_tensor_slices((test_files, test_labels))
+test_ds = test_ds.map(load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+test_ds = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+
+# Calculate label counts from training labels
+label_counts = Counter(train_labels)
 print(label_counts)
-
-#seeing the class names
 print(f"classes are: {classes}")
 
 #visualizing some images from the dataset

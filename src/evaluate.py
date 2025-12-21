@@ -13,8 +13,8 @@ import seaborn as sns
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow Python warnings
 
-#step1:loading the saved model(model_final_v3)
-model=tf.keras.models.load_model('model/final_model_v9.h5')
+#step1:loading the saved model
+model=tf.keras.models.load_model('model/densenet_v1.keras')
 
 #step 2: evaluating on test dataset
 evaluation_result=model.evaluate(dp.test_ds, verbose=1)

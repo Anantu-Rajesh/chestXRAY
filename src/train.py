@@ -22,32 +22,31 @@ print("\n" + "="*60)
 print("PHASE 1: TRAINING WITH FROZEN BASE")
 print("="*60 + "\n")
 
+
 #step 3: Training model with class weights
 history_1=model.fit(
     dp.train_ds_aug,
     validation_data=dp.val_ds,
     epochs=config.epoch,
     verbose=2,
-    class_weight=dp.class_weight_very_strong,
+    #class_weight=dp.class_weight_balanced,
     callbacks=[
-        tf.keras.callbacks.EarlyStopping(patience=3,restore_best_weights=True),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=3,restore_best_weights=True),
         tf.keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=2)
     ]
 )
-model.save('model/final_model_v9_p1.h5')
+model.save('model/densenet_v1_p1.keras')
 print("\n" + "="*60)
 print(f"PHASE 1 COMPLETE")
 print(f"Final Training Accuracy: {history_1.history['accuracy'][-1]:.4f}")
 print(f"Final Validation Accuracy: {history_1.history['val_accuracy'][-1]:.4f}")
 print("="*60 + "\n")
-#visualising results
-print(history_1.history.keys())  
-print(history_1.history['accuracy'])
+
 
 #step 4: Fine-tuning by unfreezing some layers of same model
-# Find the EfficientNetB0 layer by type
+# Find the DenseNet121 layer by type
 for layer in model.layers:
-    if isinstance(layer, tf.keras.Model) and 'efficientnet' in layer.name.lower():
+    if isinstance(layer, tf.keras.Model) and 'densenet' in layer.name.lower():
         base_model = layer
         break
 
@@ -74,12 +73,12 @@ history_2=model.fit(
     validation_data=dp.val_ds,
     epochs=config.epoch,
     verbose=2,
-    class_weight=dp.class_weight_very_strong,
+    #class_weight=dp.class_weight_balanced,
     callbacks=[
-        tf.keras.callbacks.EarlyStopping(patience=5,restore_best_weights=True),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5,restore_best_weights=True),
     ]
 )
-model.save('model/final_model_v9.h5') #saves final model(with fine-tuning)
+model.save('model/densenet_v1.keras') #saves final model(with fine-tuning)
 
 #visualising results
 print("\n" + "="*60)

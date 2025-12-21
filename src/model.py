@@ -5,13 +5,14 @@ warnings.filterwarnings('ignore')  # Suppress Python warnings
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 from tensorflow.keras import layers, models
-from tensorflow.keras.applications import EfficientNetB0
+
+from tensorflow.keras.applications import DenseNet121
 import config
 
 
 def create_model(input_shape=config.img_size +(3,),trainable_base=False):
-    #step 1: Loading efficientnetB0 model
-    base_model=EfficientNetB0(
+    #step 1: Loading densenet121 model
+    base_model=DenseNet121(
         include_top=False,
         weights='imagenet',
         input_shape=input_shape
@@ -24,7 +25,7 @@ def create_model(input_shape=config.img_size +(3,),trainable_base=False):
     inputs =layers.Input(shape=input_shape)
     
     #step 4: Applying preprocessing for the model which normalises values to range(-1,1)
-    x=tf.keras.applications.efficientnet.preprocess_input(inputs)
+    x=tf.keras.applications.densenet.preprocess_input(inputs)
     
     #step 5: passing this data to base model
     x=base_model(x,training=False)
