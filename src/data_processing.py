@@ -1,25 +1,15 @@
-#This file includes loading the dataset and the preprocessing steps involved 
-
-#Setup and Import all necessary Libraries
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  
 import warnings
-warnings.filterwarnings('ignore')  # Suppress Python warnings
-import config
-import numpy as np
-import pandas as pd 
+warnings.filterwarnings('ignore')  
+import src.config as config
 import matplotlib.pyplot as plt
 import tensorflow as tf
-tf.get_logger().setLevel('ERROR')  # Suppress TensorFlow Python warnings
+tf.get_logger().setLevel('ERROR')  
 from collections import Counter
 import random
-
-
-#Load the Dataset with patient-level splitting to prevent data leakage
-import glob
 from collections import defaultdict
 
-# Get all image file paths
 normal_files = list(config.data_dir.glob('NORMAL/*.jpeg'))
 pneumonia_files = list(config.data_dir.glob('PNEUMONIA/**/*.jpeg'))
 
@@ -37,25 +27,22 @@ for f in pneumonia_files:
 
 print(f"Found {len(all_files)} files belonging to 2 classes.")
 
-# Group images by patient ID
 patient_data = defaultdict(list)
 
 for filepath, label in zip(all_files, all_labels):
     filename = os.path.basename(filepath)
-    
-    # Extract patient ID from filename
+
     if filename.startswith('person'):
-        patient_id = filename.split('_')[0]  # personXXX_bacteria/virus_YYY -> personXXX
+        patient_id = filename.split('_')[0]  
     elif filename.startswith('img-'):
-        patient_id = 'normal_' + filename.split('-')[1]  # img-XXX-YYY -> normal_XXX
+        patient_id = 'normal_' + filename.split('-')[1]  
     else:
-        patient_id = filename  # Fallback
+        patient_id = filename 
     
     patient_data[patient_id].append((filepath, label))
 
 print(f"Total unique patients: {len(patient_data)}")
 
-# Split PATIENTS (not images) into 60/20/20
 random.seed(123)
 patient_ids = list(patient_data.keys())
 random.shuffle(patient_ids)
@@ -67,7 +54,6 @@ test_patients = patient_ids[int(0.8 * n_patients):]
 
 print(f"Train patients: {len(train_patients)}, Val patients: {len(val_patients)}, Test patients: {len(test_patients)}")
 
-# Create file lists for each split
 train_files, train_labels = [], []
 val_files, val_labels = [], []
 test_files, test_labels = [], []
@@ -89,15 +75,13 @@ for pid in test_patients:
 
 print(f"Train images: {len(train_files)}, Val images: {len(val_files)}, Test images: {len(test_files)}")
 
-# Load and preprocess function - ENSURES 3-CHANNEL RGB
 def load_and_preprocess(filepath, label):
     image = tf.io.read_file(filepath)
-    image = tf.image.decode_jpeg(image, channels=3)  # Force 3 channels (grayscale -> RGB)
+    image = tf.image.decode_jpeg(image, channels=3)  
     image = tf.image.resize(image, config.img_size)
-    image = tf.cast(image, tf.float32)  # Convert to float for preprocessing
+    image = tf.cast(image, tf.float32)  
     return image, label
 
-# Create TensorFlow datasets
 train_ds = tf.data.Dataset.from_tensor_slices((train_files, train_labels))
 train_ds = train_ds.map(load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
 train_ds = train_ds.shuffle(1000).batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
@@ -110,12 +94,10 @@ test_ds = tf.data.Dataset.from_tensor_slices((test_files, test_labels))
 test_ds = test_ds.map(load_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
 test_ds = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
 
-# Calculate label counts from training labels
 label_counts = Counter(train_labels)
 print(label_counts)
 print(f"classes are: {classes}")
 
-#visualizing some images from the dataset
 plt.figure(figsize=(10,10))
 for images,labels in train_ds.take(1):
     print(f"Single image shape: {images[0].shape}")
@@ -126,36 +108,32 @@ for images,labels in train_ds.take(1):
         plt.axis("off")
 plt.show()
 
-#checking the shape of images, if it(224,224,3) it means greyscale to RGB conversion already carried out
 for images,labels in train_ds.take(2):
     print(f"Batch image shape: {images.shape}")
     print(f"Single image shape: {images[0].shape}")
-    
-#Data augmentation- applying small rotations, translations and zooms to prevent overfitting to just the training dataset
+
 data_augmentation=tf.keras.Sequential([
-    tf.keras.layers.RandomRotation(0.014), # around 5 degrees rotation
-    tf.keras.layers.RandomZoom(0.1), # zoom in by 10%
-    tf.keras.layers.RandomTranslation(0.05,0.05) # shift pixels is 0.05x224 which is around 11 pixels
+    tf.keras.layers.RandomRotation(0.014), 
+    tf.keras.layers.RandomZoom(0.1), 
+    tf.keras.layers.RandomTranslation(0.05,0.05) # shift pixels is 0.05x224 basically 11 pixels-ish
 ])
 
-train_ds_aug=train_ds.map(lambda x,y:(data_augmentation(x,training=True),y))   #len of train_ds_aug = len of train_ds
+'''train_ds_aug=train_ds.map(lambda x,y:(data_augmentation(x,training=True),y))   
 
-#Data scaling/ normalisation: normalising/rescaling rgb values to [0,1] from [0,255]
-#normalisation_layer=tf.keras.layers.Rescaling(1./255) # the 1. helps with float division (this line returns value in range 0-1)
+Data scaling/ normalisation: normalising/rescaling rgb values to [0,1] from [0,255]
+normalisation_layer=tf.keras.layers.Rescaling(1./255) # the 1. helps with float division (this line returns value in range 0-1)
 
-#train_ds_scaled=train_ds_aug.map(lambda x,y:(normalisation_layer(x),y)) #here x is the image and y is the label, y remains unchanged while x is scaled
-#val_ds_scaled=val_ds.map(lambda x,y:(normalisation_layer(x),y))
-#test_ds_scaled=test_ds.map(lambda x,y:(normalisation_layer(x),y))
+train_ds_scaled=train_ds_aug.map(lambda x,y:(normalisation_layer(x),y)) #here x is the image and y is the label, y remains unchanged while x is scaled
+val_ds_scaled=val_ds.map(lambda x,y:(normalisation_layer(x),y))
+test_ds_scaled=test_ds.map(lambda x,y:(normalisation_layer(x),y))
 
-#check a batch of images to see if normalisation is done properly
-#ds_list=[train_ds_scaled,val_ds_scaled,test_ds_scaled]
-#for i in ds_list:
-#    #image_batch, labels_batch = next(iter(i))
-#    #first_image = image_batch[0]
-#    # Notice the pixel values are now in [0,1].
-#    #print(np.min(first_image), np.max(first_image))
-    
-#finding length of classes in train set so that we can see class imbalance and assign class weights
+check a batch of images to see if normalisation is done properly
+ds_list=[train_ds_scaled,val_ds_scaled,test_ds_scaled]
+for i in ds_list:
+    image_batch, labels_batch = next(iter(i))
+    first_image = image_batch[0]
+    print(np.min(first_image), np.max(first_image))'''
+
 train_class_counts = {}
 for images, labels in train_ds:
     for label in labels.numpy():
@@ -166,9 +144,9 @@ for images, labels in train_ds:
             train_class_counts[class_name] = 1
 print("Class distribution in training set:", train_class_counts)
 
-#assigning class weights to handle class imbalance( the model ignores the minority class completely to optimize overall accuracy which is wrong)
-#from classcounts we know pneumonia class has more images than normal class
-#now class weight calculated as total_images/ (num_classes * images_in_class)
+'''assigning class weights to handle class imbalance
+from classcounts we know pneumonia class has more images than normal class
+now class weight calculated as total_images/ (num_classes * images_in_class)'''
 total_samples = sum(label_counts.values())
 num_classes = len(label_counts)
 
@@ -176,7 +154,6 @@ class_weight = {
     cls: total_samples / (num_classes * count)
     for cls, count in label_counts.items()
 }
-
 class_weight_balanced = {0: 1.0, 1: 1.0}
 class_weight_gentle = {0: 1.2, 1: 0.9}
 class_weight_strong = {0: 1.5, 1: 0.8}

@@ -6,3 +6,6 @@ scikit-learn
 Pillow
 h5py
 seaborn
+IPython
+opencv-python
+fastapi

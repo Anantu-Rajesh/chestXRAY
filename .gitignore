@@ -78,13 +78,12 @@ htmlcov/
 
 # Experimental files and notes
 focalloss.txt
-*.txt.bak
-experiments/
-scratch/
+model/
 cleanup_old_models.ps1
 
 # Generated outputs
 confusion_matrix.png
+gpu_test.py
 *.csv
 results/
 outputs/
