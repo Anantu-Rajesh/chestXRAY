@@ -9,3 +9,10 @@ seaborn
 IPython
 opencv-python
 fastapi
+PyJWT
+bcrypt
+uvicorn
+pymongo
+python-multipart
+pydantic
+python-dotenv

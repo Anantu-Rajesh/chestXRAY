@@ -1,12 +1,30 @@
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python build and packaging
 build/
-develop-eggs/
 dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -20,75 +38,41 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
+# Test, lint, notebook caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Node/Vite frontend artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
 
-# Model files (large) - keep only final trained models
-model/*.h5
-model/*_v[0-9]*.h5
-model/*_v[0-9][0-9]*.h5
-model/*.keras
-!model/densenet_v1.keras
-!model/densenet_v1_p1.keras
-model/*.pt
-model/*.pth
-model/*.ckpt
+# Logs and temp files
+logs/
+*.log
+*.tmp
+*.temp
+
+# ML/data artifacts
+data/
+results/
+outputs/
+confusion_matrix.png
 *.pkl
 *.joblib
 
-# Data (large image datasets)
-data/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-
-# Logs
-*.log
-logs/
-
-# OS
-Thumbs.db
-.DS_Store
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Environment variables
-.env
-.env.local
-
-# Experimental files and notes
-focalloss.txt
-model/
-cleanup_old_models.ps1
-
-# Generated outputs
-confusion_matrix.png
-gpu_test.py
-*.csv
-results/
-outputs/
-
-# Temporary files
-*.tmp
-*.temp
-~*
+# Model outputs: keep only final checked-in models
+model/*
+model/densenet_v1.keras
+model/densenet_v1_p1.keras

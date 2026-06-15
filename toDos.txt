@@ -1,0 +1,4 @@
+1. frontend changes(make it less ai-ish and add more info)
+2. history multiple delete(s) endpoint + frontend connectivity
+4. updating docs
+5. testing validation + documenting it (mayb)

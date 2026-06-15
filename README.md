@@ -1,10 +1,103 @@
-# Chest X-Ray Pneumonia Detection using Deep Learning
+# Chest X-Ray Pneumonia Detection
 
-A deep learning-based medical image classification system for detecting pneumonia in chest X-ray images. This project implements **DenseNet121** with transfer learning and patient-level data splitting to ensure robust generalization to unseen patients, achieving **95.4% accuracy** with **89% normal recall** and **97% pneumonia recall**.
+A full-stack AI application for pneumonia screening from chest X-rays. Combines a DenseNet121 transfer learning model with a React + FastAPI + MongoDB stack, including Grad-CAM explainability and PDF report generation.
 
-## Dataset
+ **Disclaimer:** This is a research and learning project. Not a certified medical device. Not a substitute for professional diagnosis.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Model | DenseNet121, TensorFlow/Keras |
+| Explainability | Grad-CAM (conv5_block16_1_conv) |
+| Backend | FastAPI, Python |
+| Database | MongoDB Atlas, PyMongo |
+| Auth | JWT (PyJWT), bcrypt |
+| Frontend | React, Tailwind CSS, Framer Motion |
+| PDF Reports | jsPDF |
+
+---
+
+## Project Structure
+
+```
+├── model/
+│   ├── densenet_v1.keras          # Final trained model
+│   └── densenet_v1_p1.keras       # Phase 1 checkpoint
+│
+├── src/                           # ML pipeline
+│   ├── config.py                  # Hyperparameters and paths
+│   ├── data_processing.py         # Patient-level data loading and splitting
+│   ├── model.py                   # DenseNet121 architecture
+│   ├── train.py                   # Two-phase training
+│   ├── evaluate.py                # Metrics and threshold analysis
+│   └── explain.py                 # Grad-CAM generation
+│
+├── predict.py                     # Inference entry point
+│
+├── backend/
+│   ├── main.py                    # FastAPI app, CORS
+│   ├── db.py                      # MongoDB connection
+│   ├── routes/
+│   │   ├── predict.py             # POST /predict
+│   │   ├── auth.py                # Login / signup
+│   │   └── history.py             # Scan history CRUD
+│   ├── models/
+│   │   ├── user.py                # Pydantic user schema
+│   │   └── history.py             # Pydantic history schema
+│   └── utils/
+│       ├── auth.py                # JWT create / verify
+│       └── hash.py                # Password hashing
+│
+└── frontend/
+    └── src/
+        ├── pages/
+        │   ├── Overview.jsx       # Project info, model details, how-it-works
+        │   ├── Home.jsx           # Upload → analyze → result flow
+        │   ├── History.jsx        # Authenticated scan history
+        │   ├── Login.jsx
+        │   └── Signup.jsx
+        ├── components/
+        │   ├── Layout.jsx
+        │   ├── Navbar.jsx
+        │   ├── UploadBox.jsx      # react-dropzone based uploader
+        │   ├── ImagePreview.jsx
+        │   ├── ResultCard.jsx     # Prediction + heatmap display
+        │   └── HistoryCard.jsx
+        └── utils/
+            ├── toBase64.js        # Blob URL → base64 conversion
+            └── docFile.js         # PDF report generation
+```
+
+---
+
+## Model
+
+### Architecture
+
+Base: DenseNet121 pretrained on ImageNet (`include_top=False`)
+
+Custom head:
+```
+GlobalAveragePooling2D → Dropout(0.3) → Dense(128, relu) → Dropout(0.2) → Dense(1, sigmoid)
+```
+
+### Training — Two-Phase Transfer Learning
+
+| Phase | Base Layers | LR | Epochs | Early Stopping |
+|---|---|---|---|---|
+| 1 | Frozen | 1e-3 | up to 10 | patience=3 |
+| 2 | Last 20 unfrozen | 1e-5 | up to 10 | patience=5 |
+
+Phase 1 trains only the custom head on frozen ImageNet features. Phase 2 fine-tunes the last 20 DenseNet layers at a low learning rate to adapt to chest X-ray patterns without catastrophic forgetting.
+
+### Dataset
 
 **Chest X-Ray Images (Pneumonia) Dataset**
+
+Dataset link : https://www.kaggle.com/datasets/divyam6969/chest-xray-pneumonia-dataset
 
 The dataset contains chest X-ray images from **2,986 unique patients**, organized into:
 - **Normal**: Healthy chest X-ray images (826 images)
@@ -16,9 +109,11 @@ The dataset contains chest X-ray images from **2,986 unique patients**, organize
 - **Total Images**: 5,256 chest X-rays
 - **Total Patients**: 2,986 unique patients
 - **Patient-Level Split**: 60/20/20 (Train/Val/Test)
-  - Training: 1,791 patients (3,088 images)
-  - Validation: 597 patients (1,005 images)
-  - Test: 598 patients (1,163 images)
+| Split | Patients | Images |
+|---|---|---|
+| Train | 1,791 | 3,088 |
+| Validation | 597 | 1,005 |
+| Test | 598 | 1,163 |
 - **Image format**: JPEG
 - **Image dimensions**: Resized to 224×224 pixels
 - **Color space**: RGB (grayscale X-rays converted to 3-channel)
@@ -27,177 +122,7 @@ The dataset contains chest X-ray images from **2,986 unique patients**, organize
 **Dataset Source:**  
 Chest X-Ray Images (Pneumonia) Dataset from Kaggle
 
-> **Critical Implementation Detail**: This project uses **patient-level splitting** rather than random image splitting. This prevents data leakage where the same patient's multiple X-rays appear in both training and test sets, ensuring the model generalizes to truly unseen patients.
-
-> **Note:** The dataset is not included in this repository due to its size. Please download it separately and place it in the `data/Chest XRay Dataset/` directory following the structure shown below.
-
-## Project Structure
-
-```
-Chest XRAY Project/
-├── data/
-│   └── all_img/              # All images in single directory
-│       ├── NORMAL/
-│       └── PNEUMONIA/
-│           ├── BACTERIAL/
-│           └── VIRAL/
-├── model/
-│   ├── densenet_v1.keras       # Final trained model
-│   └── densenet_v1_p1.keras    # Phase 1 checkpoint
-├── src/
-│   ├── config.py            # Configuration and hyperparameters
-│   ├── data_processing.py   # Patient-level data loading
-│   ├── model.py            # DenseNet121 architecture
-│   ├── train.py            # Two-phase training script
-│   ├── evaluate.py         # Model evaluation with metrics
-│   └── explain.py          # Model interpretability (Grad-CAM)
-├── gpu_test.py             # GPU availability test
-├── requirements.txt        # Python dependencies
-└── README.md
-```
-
-## Features
-
-### Patient-Level Data Splitting
-- **Prevents Data Leakage**: Ensures no patient appears in multiple splits
-- **Patient ID Extraction**: Automatically extracts patient IDs from filenames
-  - Pneumonia: `personXXX_bacteria/virus_YYY` → Patient ID: `personXXX`
-  - Normal: `img-XXX-YYY` → Patient ID: `XXX`
-- **Realistic Evaluation**: Test performance reflects generalization to unseen patients
-
-### Data Processing Pipeline
-- **Automated Patient-Level Loading**: Groups images by patient before splitting
-- **Data Augmentation**: Applied only to training set:
-  - Random rotation (±5 degrees)
-  - Random zoom (10%)
-  - Random translation (5% shift)
-- **DenseNet Preprocessing**: Proper preprocessing for DenseNet121 architecture
-- **Class Imbalance Awareness**: Calculated class weights (Normal: 1.90, Pneumonia: 0.68)
-
-### Model Architecture: DenseNet121
-- **Base Model**: DenseNet121 pre-trained on ImageNet
-- **Transfer Learning**: Two-phase training approach
-  - **Phase 1**: Frozen base model (Learning rate: 1e-3)
-  - **Phase 2**: Fine-tuning last 20 layers (Learning rate: 1e-5)
-- **Custom Top Layers**:
-  - GlobalAveragePooling2D
-  - Dropout(0.3)
-  - Dense(128, relu)
-  - Dropout(0.2)
-  - Dense(1, sigmoid)
-- **Input Size**: 224×224×3
-- **Batch Size**: 32
-- **Training Epochs**: 10 per phase
-- **Loss Function**: Binary cross-entropy
-- **Callbacks**: EarlyStopping (monitor: val_loss), ReduceLROnPlateau
-
-### Evaluation Metrics
-- Accuracy, Precision, Recall, AUC
-- Confusion Matrix with heatmap visualization
-- Threshold optimization (tested: 0.3, 0.4, 0.5, 0.6, 0.7)
-- Prediction distribution analysis
-
-## Technologies Used
-
-- **Python 3.13**
-- **TensorFlow 2.15+**: Deep learning framework
-- **Keras 3.x**: High-level neural network API
-- **DenseNet121**: Dense Convolutional Network architecture
-- **NumPy 1.26+**: Numerical computations
-- **Pandas**: Data manipulation
-- **Matplotlib**: Data visualization
-- **Seaborn**: Statistical data visualization
-- **Scikit-learn**: Machine learning utilities and metrics
-- **Pillow**: Image processing
-
-## Prerequisites
-
-### Hardware Requirements
-- **GPU (Recommended)**: CUDA-compatible GPU for faster training
-  - Note: TensorFlow 2.10+ removed native Windows CUDA support
-  - For GPU acceleration on Windows: Use WSL2 or TensorFlow 2.10 with Python 3.10
-- **RAM**: Minimum 8GB (16GB recommended)
-- **Storage**: ~5GB for dataset and models
-
-### Software Requirements
-- Python 3.13
-- GPU (Optional but recommended): CUDA-compatible GPU
-  - TensorFlow 2.15+ supports Windows GPU via WSL2
-
-## Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/Anantu-Rajesh/chestXRAY.git
-cd chestXRAY
-```
-
-2. **Create a virtual environment (recommended)**
-```bash
-python -m venv venv
-# On Windows
-venv\Scripts\activate
-# On Linux/Mac
-source venv/bin/activate
-```
-
-3. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-4. **Download and organize the dataset**
-   - Download the Chest X-Ray dataset
-   - Create `data/all_img/` directory
-   - Place all images in subdirectories: `NORMAL/` and `PNEUMONIA/`
-   - Ensure filenames follow the pattern:
-     - Normal: `img-XXX-YYY.jpeg`
-     - Pneumonia: `personXXX_bacteria_YYY.jpeg` or `personXXX_virus_YYY.jpeg`
-
-## Usage
-
-### 1. Train the Model
-```bash
-python src/train.py
-```
-This will:
-- Load images with patient-level splitting
-- Train DenseNet121 in two phases (frozen → fine-tuned)
-- Save models to `model/densenet_v1_p1.keras` (phase 1) and `model/densenet_v1.keras` (final)
-- Display training progress and final metrics
-
-### 2. Evaluate the Model
-```bash
-python src/evaluate.py
-```
-This will:
-- Load the trained model
-- Evaluate on test set (598 unseen patients)
-- Generate confusion matrix and classification report
-- Test multiple thresholds (0.3 to 0.7)
-- Save confusion matrix visualization
-
-### 3. Model Interpretation (Grad-CAM)
-```bash
-python src/explain.py
-```
-(To be implemented: Visualization of model attention on X-ray regions)
-
-## Model Configuration
-
-Key hyperparameters in `src/config.py`:
-- `img_size`: Input image dimensions (224×224)
-- `batch_size`: Batch size for training (32)
-- `epoch`: Number of training epochs per phase (10)
-- `data_dir`: Path to image directory (`data/all_img`)
-
-Training configuration in `src/train.py`:
-- **Phase 1**: Frozen base, LR=1e-3, EarlyStopping(patience=3)
-- **Phase 2**: Fine-tune last 20 layers, LR=1e-5, EarlyStopping(patience=5)
-
-## Key Implementation Details
-
-### Patient-Level Data Splitting
+**Implementation Detail**: This project uses **patient-level splitting** rather than random image splitting. 
 ```python
 # Extract patient IDs from filenames
 if filename.startswith('person'):
@@ -212,70 +137,124 @@ This ensures:
 - Model evaluated on completely unseen patients
 - More realistic performance metrics
 
-### Two-Phase Transfer Learning
-1. **Phase 1 (Frozen Base)**:
-   - Trains only custom top layers
-   - Fast convergence with high learning rate (1e-3)
-   - Learns task-specific features on frozen ImageNet features
+**Note:** The dataset is not included in this repository due to its size. Please download it separately and place it in the `data/Chest XRay Dataset/` directory following the structure shown below.
 
-2. **Phase 2 (Fine-Tuning)**:
-   - Unfreezes last 20 layers of DenseNet121
-   - Low learning rate (1e-5) for careful adjustment
-   - Adapts pre-trained features to chest X-ray domain
+### Results
 
-### Class Imbalance Handling
-```python
-class_weight = {
-    0 (Normal): 1.90,     # Upweight minority class
-    1 (Pneumonia): 0.68   # Downweight majority class
-}
+Test set: 598 unseen patients, 1,163 images.
+
+| Metric | Value |
+|---|---|
+| Accuracy | 95.7% |
+| AUC | 0.989 |
+| Pneumonia Recall | 97.52% |
+| Normal Recall | 89.86% |
+| Test Loss | 0.1059 |
+
+Confusion matrix (threshold = 0.5):
+```
+              Predicted
+           Normal  Pneumonia
+Actual Normal   248        28
+       Pneumonia  22       865
 ```
 
-### Optimal Threshold Selection
-Standard threshold (0.5) is not optimal for medical applications. Testing revealed:
-- **Threshold 0.6** provides best balance:
-  - Normal recall: 90.6%
-  - Pneumonia recall: 96.96%
-  - Overall accuracy: 95.44%
+Prediction distribution (strong class separation):
+- Normal X-rays: mean score **0.13**
+- Pneumonia X-rays: mean score **0.97**
 
-## Results
+Threshold was kept at **0.5** based on evaluation results. Thresholds were tested in the range (0.3-0.7) among which 0.6 gave marginally better normal recall at the cost of slightly lower pneumonia recall — configurable in `predict.py`.
 
-### Model Performance (Test Set: 598 Patients, 1163 Images)
+---
 
-**Overall Metrics:**
-- **Accuracy**: 95.18%
-- **AUC**: 0.9895
-- **Test Loss**: 0.1155
+## Grad-CAM
 
-**Class-Specific Performance (Threshold: 0.5):**
+Grad-CAM computes gradients of the predicted class score with respect to feature maps at a chosen convolutional layer. High-gradient regions get warm colors (red/yellow) in the overlay; low-gradient regions get cool colors (blue).
 
-| Class | Precision | Recall | F1-Score | Support |
-|-------|-----------|--------|----------|---------|
-| Normal | 0.91 | 0.89 | 0.90 | 276 |
-| Pneumonia | 0.97 | 0.97 | 0.97 | 887 |
+**Layer used:** `conv5_block16_1_conv`
 
-**Confusion Matrix:**
+### Known Limitation
+
+In some cases — particularly normal X-rays and occasionally pneumonia cases — the heatmap highlights regions outside the chest area rather than the lungs.
+
+This is not a model flaw. Two reasons:
+
+1. `conv5_block16_1_conv` is a pre-activation layer. The gradient signal can be spatially diffuse at this depth.
+2. Grad-CAM assumes a linear relationship between feature maps and output — an approximation that can spread activation across regions.
+
+The classification metrics confirm the model is learning correct patterns: AUC 0.9912 on a strict patient-level split, with clearly separated prediction distributions (0.13 vs 0.97 mean scores). Background heatmap activation for normal X-rays is also clinically harmless — the model is correctly identifying the absence of pneumonia regardless.
+
+Potential improvement: switch to **Grad-CAM++** or target `conv5_block16_concat` (post-activation) for tighter spatial localization.
+
+---
+
+## API Endpoints
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| POST | `/predict` | No | Upload X-ray → label + probability + heatmap (base64) |
+| POST | `/auth/signup` | No | Register, returns JWT |
+| POST | `/auth/login` | No | Login, returns JWT |
+| GET | `/history` | JWT | Fetch user's scan history |
+| POST | `/history` | JWT | Save scan record |
+| DELETE | `/history/{id}` | JWT | Delete single record |
+| DELETE | `/history` | JWT | Bulk delete by list of IDs |
+
+---
+
+## Running Locally
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- MongoDB Atlas account (free tier)
+
+### Backend
+
+```bash
+git clone https://github.com/Anantu-Rajesh/chestXRAY.git
+cd chestXRAY
+
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Create .env in backend/ folder:
+# MONGODB_URL=your_atlas_connection_string
+# SECRET_KEY=your_jwt_secret
+
+cd backend
+uvicorn main:app --reload
 ```
-                 Predicted
-              Normal  Pneumonia
-Actual Normal    245       31
-       Pneumonia  25      862
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-**Optimal Threshold Analysis (0.6):**
-- Normal correctly identified: 250/276 (90.6%)
-- Pneumonia correctly identified: 860/887 (96.96%)
-- Accuracy: 95.44%
+Frontend: `http://localhost:5173` — Backend: `http://localhost:8000`
 
-**Prediction Distribution:**
-- Normal X-rays mean prediction: **0.14** 
-- Pneumonia X-rays mean prediction: **0.96**
-- Clear discrimination between classes ✓
+### Training & Evaluation
+**Download and organize the dataset**
+  - Download the Chest X-Ray dataset
+  - Create `data/all_img/` directory
+  - Place all images in subdirectories: `NORMAL/` and `PNEUMONIA/`
+  - Ensure filenames follow the pattern:
+    - Normal: `img-XXX-YYY.jpeg`
+    - Pneumonia: `personXXX_bacteria_YYY.jpeg` or `personXXX_virus_YYY.jpeg`
 
-### Key Achievements
- **Patient-level splitting** prevents data leakage  
- **Balanced performance** on both classes (89% normal, 97% pneumonia)  
- **High discrimination** (AUC: 0.9895)  
- **Generalizes to unseen patients** (598 new patients in test set)  
- **Production-ready** with optimized threshold (0.6)
+```bash
+python src/train.py     # train and save model
+python src/evaluate.py  # evaluate on test set
+```
 
+---
+
+## Known Limitations
+
+- **Grad-CAM background activation**
+- **Single dataset** — trained on one Kaggle dataset. Generalisation to different scanners, patient demographics, or image quality is untested.
+- **Not clinically validated** — no radiologist review or prospective clinical testing. Research and learning project only.

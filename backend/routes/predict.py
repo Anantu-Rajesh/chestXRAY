@@ -1,12 +1,18 @@
-import io 
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+import io
 from PIL import Image
 import predict as pred
-from fastapi import FastAPI,UploadFile,File
+from fastapi import APIRouter, UploadFile, File
 
-app=FastAPI()
-pred.load_model()
+router = APIRouter()
 
-@app.post("/predict")
+@router.post("/predict")
 async def predict(file: UploadFile=File(...)):
     file=await file.read()
     image=Image.open(io.BytesIO(file))
