@@ -74,5 +74,9 @@ confusion_matrix.png
 
 # Model outputs: keep only final checked-in models
 model/*
-model/densenet_v1.keras
-model/densenet_v1_p1.keras
+
+#Extras
+focalLoss.txt
+gpu_test.py
+toDos.txt
+cleanup_old_models.ps1
